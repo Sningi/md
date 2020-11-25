@@ -167,11 +167,11 @@ udpTable:add(6666, ng_cdr_Protocol)
 
 显示结果，
 
-<img src="C:\Users\song\Desktop\samll cdr.png" style="zoom:67%;" />
+<img src="./small_cdr.png" style="zoom:67%;" />
 
 ##### 8.解析器初始化
 
-文件目录为wireshark 安装目录，修改文件 init.lua，插件放置于同目录
+文件目录为wireshark 安装目录，修改文件 init.lua，于文件尾部添加插件，插件放置于同目录
 
 ```lua
 dofile(DATA_DIR.."padding.lua")
