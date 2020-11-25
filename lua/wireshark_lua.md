@@ -6,11 +6,11 @@
 
 ##### 1.树形协议解码
 
-支持灵活添加协议子树（ wireshark 工具栏-->视图-->分组详情）
+​	支持灵活添加协议子树（ wireshark 工具栏-->视图-->分组详情）
 
 ##### 2.tvb 格式数据传递
 
-向每一级子协议传递其注册的数据区域首地址，依据偏移灵活取用
+​	向每一级子协议传递其注册的数据区域首地址，依据偏移灵活取用
 
 ```c
 typedef struct _tvbuff_t{
@@ -31,19 +31,19 @@ msisdn   = ProtoField.uint64(NAME .. ".msisdn", "MSISDN")
 tac 	 = ProtoField.uint16(NAME ..".tac", "tac", base.HEX)
 ```
 
-Lua 语法之字符串拼接符号 ： ‘**..**‘
+​	Lua 语法之字符串拼接符号 ： ‘**..**‘
 
-ProtoField.new(**arg1, arg2,arg3**):
+​	ProtoField.new(**arg1, arg2,arg3**):
 
-​	**new**():  wireshark 支持的字段格式
+​		**new**():  wireshark 支持的字段格式
 
-​    **arg1** :  wireshark 过滤器格式
+​    	**arg1** :  wireshark 过滤器格式
 
-​    **arg2** :  字段显示名
+​    	**arg2** :  字段显示名
 
-​    **arg3** :  字段显示格式
+​    	**arg3** :  字段显示格式
 
-API 详见 11.6.7：		[https://www.wireshark.org/docs/wsdg_html_chunked/lua_module_Proto.html#lua_class_ProtoField](https://www.wireshark.org/docs/wsdg_html_chunked/lua_module_Proto.html#lua_class_ProtoField)
+​	API 详见 11.6.7：		[https://www.wireshark.org/docs/wsdg_html_chunked/lua_module_Proto.html#lua_class_ProtoField](https://www.wireshark.org/docs/wsdg_html_chunked/lua_module_Proto.html#lua_class_ProtoField)
 
 ------
 
@@ -89,17 +89,17 @@ The newly created [`ProtoField`](https://www.wireshark.org/docs/wsdg_html_chunke
 
 ##### 2.buffer(offset, length) 数据
 
- offset 基于首地址的偏移长度（bytes），length 解析的数据长度(bytes)
+​	offset 基于首地址的偏移长度（bytes），length 解析的数据长度(bytes)
 
 ##### 3.大小端解析
 
- 报文数据：大端：**add()** ，小端：**add_le()** 
+​	报文数据：大端：**add()** ，小端：**add_le()** 
 
 ##### 4.向协议树中注册自定义协议
 
 ##### 5.协议解码函数，添加解析字段的实例
 
-完整流程代码
+​	完整流程代码
 
 ```lua
 local NAME = "Padding"
@@ -155,7 +155,7 @@ udpTable:add(6666, ng_cdr_Protocol)
 
 ##### 7.解析树分离显示
 
-参数二选择的数据域，效果为点击协议树时，十六进制字节流蓝色着重标注区域
+​	参数二选择的数据域，效果为点击协议树时，十六进制字节流蓝色着重标注区域
 
 ```lua
   local subtree = tree:add(ng_cdr_Protocol, buffer(), "NG CDR Data")
@@ -165,13 +165,13 @@ udpTable:add(6666, ng_cdr_Protocol)
   local cdrSubtree = subtree:add(ng_cdr_Protocol, buffer(44+367,len), "SMALL CDR    len:" .. len .. "")
 ```
 
-显示结果，
+​	显示结果，
 
 <img src="./small_cdr.png" style="zoom:67%;" />
 
 ##### 8.解析器初始化
 
-文件目录为wireshark 安装目录，修改文件 init.lua，于文件尾部添加插件，插件放置于同目录
+​	文件目录为wireshark 安装目录，修改文件 init.lua，于文件尾部添加插件，插件放置于同目录
 
 ```lua
 dofile(DATA_DIR.."padding.lua")
