@@ -66,9 +66,9 @@ fiveg_tmsi  = ProtoField.uint32(NAME .. ".fiveg_tmsi", "fiveg_tmsi",base.DEC)
     -- uint8_t     suci[24];//
     -- uint64_t    start_time;
     -- uint8_t     dnn[32];  
-imei  = ProtoField.string(NAME .. ".imei", "IMEI")
-imsi  = ProtoField.string(NAME .. ".imsi", "IMSI")
-msisdn  = ProtoField.string(NAME .. ".msisdn", "MSISDN")
+imei_ng  = ProtoField.string(NAME .. ".imei", "IMEI")
+imsi_ng  = ProtoField.string(NAME .. ".imsi", "IMSI")
+msisdn_ng  = ProtoField.string(NAME .. ".msisdn", "MSISDN")
 dnn  = ProtoField.string(NAME .. ".dnn", "dnn")
 -- small cdr
 CDR= "cdr"
@@ -87,7 +87,7 @@ ng_cdr_Protocol.fields = {
     service_type,policy_id,start_time,cdr_id,device_id,data_type,cpu_clock_mul,
     bcd_flag,reserved_1,reserved_2,reserved_3, filter_flag,     --cdr header
     -- common info
-    imei,imsi,msisdn,dnn,
+    imei_ng,imsi_ng,msisdn_ng,dnn,amf_ue_ngap_id,ran_ue_ngap_id,amf_region_id,amf_set_id,amf_pointer,fiveg_tmsi,
     -- small info
     delay_time,type,direction
 }
@@ -116,20 +116,26 @@ function get_cdr_description(cdrid)
     elseif cdrid == 0x56 then cdr_desc = "AUTH"
     elseif cdrid == 0x5b then cdr_desc = "IDE"
     elseif cdrid == 0x5d then cdr_desc = "SEC_MOD"
+        -- mm
     elseif cdrid == 0xc1 then cdr_desc = "SM_EST"
     elseif cdrid == 0xc9 then cdr_desc = "SM_MOD"
     elseif cdrid == 0xd1 then cdr_desc = "SM_RELEASE"
+        -- sm
     elseif cdrid == 0x01 then cdr_desc = "HO_OUT"
     elseif cdrid == 0x02 then cdr_desc = "HO_IN"
+        -- ho
     elseif cdrid == 0xff then cdr_desc = "UE_CONTEXT_RELEASE" end
-    
     return cdr_desc
 end
 
 function ng_cdr_Protocol.dissector(buffer, pinfo, tree)
-
+    -- return false
+    if buffer:len() > 420 then local cdr_id = buffer(420, 1):le_uint()
+        local cdr_desc = get_cdr_description(cdr_id)
+        if cdr_desc == "Unknown CDR" then return false end
+    else return false
+    end
     pinfo.cols.protocol = ng_cdr_Protocol.name
-
     local subtree = tree:add(ng_cdr_Protocol, buffer(), "NG CDR Data")
     local headerSubtree = subtree:add(ng_cdr_Protocol, buffer(0,44),    "Header         len:44")
     local commonSubtree = subtree:add(ng_cdr_Protocol, buffer(44, 367), "COMMON CDR     len:367")
@@ -138,7 +144,7 @@ function ng_cdr_Protocol.dissector(buffer, pinfo, tree)
 
     -- CDR Header
     local offset = 0
-    headerSubtree:add(header_len, buffer(offset,2)):append_text(" (len must 44)")
+    headerSubtree:add(header_len, buffer(offset,2)):append_text("\t\t[len must 44]")
     offset = offset + 2
     -- msg_type = ProtoField.uint16(NAME ..".msg_type", "msg_type", base.DEC)
     offset = offset + 2
@@ -158,7 +164,8 @@ function ng_cdr_Protocol.dissector(buffer, pinfo, tree)
     -- policy_id = ProtoField.uint16(NAME ..".policy_id", "policy_id", base.DEC)
     offset = offset + 2
     -- start_time  = ProtoField.absolute_time(NAME .. ".start_time", "start_time")
-    headerSubtree:add(start_time, buffer(offset,8)):append_text(" (CPU Clock mul * unix_nsec) ")
+    local stime = buffer(offset,8):uint64():tonumber()
+    headerSubtree:add(start_time, buffer(offset,8)):append_text("\t[CPU Clock mul * unix_nsec]")
     offset = offset + 8
     -- cdr_id  = ProtoField.uint64(NAME .. ".cdr_id", "cdr_id")
     offset = offset + 8 
@@ -169,7 +176,9 @@ function ng_cdr_Protocol.dissector(buffer, pinfo, tree)
     -- data_type = ProtoField.uint8(NAME ..".data_type", "data_type", base.DEC)
     offset = offset + 1
     -- cup_clock_mul = ProtoField.uint8(NAME ..".cup_clock_mul", "cup_clock_mul", base.DEC)
-    headerSubtree:add(cpu_clock_mul, buffer(offset,1)):append_text(" (CPU Clock 100MHz) ")
+    local ccm = buffer(offset,1):uint64():tonumber()
+    headerSubtree:add(cpu_clock_mul, buffer(offset,1)):append_text("\t\t[CPU Clock 100MHz]")
+    headerSubtree:append_text(string.format("\t[start time: %s.%d]", os.date("%Y-%m-%d %H:%M:%S", stime/1000000000),stime%1000000000))
     offset = offset + 1
     -- bcd_flag = ProtoField.uint8(NAME ..".bcd_flag", "bcd_flag", base.DEC)
     offset = offset + 1
@@ -183,40 +192,98 @@ function ng_cdr_Protocol.dissector(buffer, pinfo, tree)
     -- header len is 44
 
     -- common info
+    commonSubtree:add_le(amf_ue_ngap_id, buffer(offset,8))
+    offset = offset + 8
+    commonSubtree:add_le(ran_ue_ngap_id, buffer(offset,4))
+    offset = offset + 4
+    commonSubtree:add_le(amf_region_id, buffer(offset,1))
+    offset = offset + 1
+    commonSubtree:add_le(amf_set_id, buffer(offset,2))
+    offset = offset + 2
+    commonSubtree:add_le(amf_pointer, buffer(offset,1))
+    offset = offset +1
+
+    commonSubtree:add(fiveg_tmsi, buffer(offset,4))
+    offset = offset + 4
+
+    
+
+
+    
+
     offset = 44 + 367
-    -- uint8_t     imsi[16];//IMSI OR NAI
+    -- ip_addr_t   amf_ip_addr; 
+    -- uint16_t    amf_port;
+    -- ip_addr_t   gnb_ip_addr;
+    -- uint16_t    gnb_port;
+
+    -- ip_addr_t   upf_gtp_ipv6;
+    -- uint32_t    upf_gtp_ipv4;
+    -- uint32_t    upf_gtp_teid;
+    -- ip_addr_t   gnb_gtp_ipv6;
+    -- uint32_t    gnb_gtp_ipv4;
+    -- uint32_t    gnb_gtp_teid;
+
+    -- ip_addr_t   additional_upf_gtp_ipv6;
+    -- uint32_t    additional_upf_gtp_ipv4;
+    -- uint32_t    additional_upf_gtp_teid;
+    -- ip_addr_t   additional_gnb_gtp_ipv6;
+    -- uint32_t    additional_gnb_gtp_ipv4;
+    -- uint32_t    additional_gnb_gtp_teid;
+
+    -- ip_addr_t   pdu_address_v6;
+    -- uint32_t    pdu_address_v4;
+
+    -- uint8_t     location_type;
+    -- uint16_t    mcc;
+    -- uint16_t    mnc;
+    -- uint32_t    tac;
+    -- uint64_t    ci;
+    -- /**** para for nas decrypt   ****/
+    -- uint8_t     with_abba_flag:1;
+    -- uint8_t     with_alg_id_flag:1;
+    -- uint8_t     with_kamf_flag:1;
+    -- uint8_t     with_knasnec_flag:1;
+
+    -- uint8_t     cipher_alg_id;
+    -- uint16_t    nas_ul_overflow;       //overflow
+    -- uint16_t    nas_dl_overflow;       //overflow
+    -- uint8_t     ABBA[2];
+    -- uint8_t     kamf[32];
+    -- uint8_t     knasnec[16];
+
+    -- uint8_t     imsi_ng[16];//IMSI OR NAI
     -- uint8_t     imei[18];//IMEI OR IMEISV
     -- uint8_t     msisdn[24];//MSISDN
     -- uint8_t     suci[24];//
     -- uint64_t    start_time;
     -- uint8_t     dnn[32]; 
     offset = offset - 32
-    commonSubtree:add(dnn, buffer(offset, 32)):append_text(" (DATA NETWORK NAME)")
+    commonSubtree:add(dnn, buffer(offset, 32))
     offset = offset - 8 - 24 - 24
-    commonSubtree:add(msisdn, buffer(offset, 24)):append_text(" (phone number)")
+    commonSubtree:add(msisdn_ng, buffer(offset, 24))
     offset = offset - 18
-    commonSubtree:add(imei, buffer(offset, 18)):append_text(" (device imei)")
+    commonSubtree:add(imei_ng, buffer(offset, 18))
     offset = offset - 16
-    commonSubtree:add(imsi, buffer(offset, 18)):append_text(" (phome imsi)")
+    commonSubtree:add(imsi_ng, buffer(offset, 18))
 
 
 
     offset = 44 + 367
-    cdrSubtree:add(delay_time, buffer(offset,8)):append_text(" (delay time ".. buffer(offset,8):uint64()/1000000  .." ms) ")
+    local dtime = buffer(offset,8):uint64():tonumber()
+
+    cdrSubtree:add(delay_time, buffer(offset,8)):append_text(string.format("\t[%.3f ms]",dtime/1000000))
     offset = offset + 8 +1
     local cdr_id = buffer(offset, 1):le_uint()
     local cdr_desc = get_cdr_description(cdr_id)
-    cdrSubtree:add(type, buffer(offset,1)):append_text("(" .. cdr_desc .. ")")
+    if cdr_desc == "Unknown CDR" then return false end
+    cdrSubtree:add(type, buffer(offset,1)):append_text("\t\t[" .. cdr_desc .. "]")
     offset = offset + 1 + 1
     local direction_id = buffer(offset,1):uint()
     if direction_id == 1 then  cdr_desc = "UE to NETWORK"
     elseif direction_id == 2 then cdr_desc = "NETWORK to UE" end
-    
-    cdrSubtree:add(direction, buffer(offset,1)):append_text("(" .. cdr_desc .. ")")
-
-
-
-
+    -- pinfo
+    cdrSubtree:add(direction, buffer(offset,1)):append_text("\t\t[" .. cdr_desc .. "]")
 end
 
 local udpTable = DissectorTable.get("udp.port")
