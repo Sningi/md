@@ -82,11 +82,12 @@ local cause  = ProtoField.uint8(CDR .. ".cause", "cause", base.HEX)
 local cdr_result  = ProtoField.uint8(CDR .. ".result", "result", base.HEX)
 
 local type  = ProtoField.uint8(CDR .. ".type", "type", base.HEX)
+local msg_type  = ProtoField.uint8(CDR .. ".msg_type", "msgtype", base.HEX)
 local direction  = ProtoField.uint8(CDR .. ".direction", "direction", base.DEC)
 
 local mnc = ProtoField.uint16(NAME ..".mnc", "mnc\t", base.DEC)
-local tac  = ProtoField.uint32(NAME .. ".tac", "tac\t",base.DEC)
-local ci  = ProtoField.uint64(NAME .. ".ci", "ci\t",base.DEC)
+local tac  = ProtoField.uint32(NAME .. ".tac", "tac\t",base.HEX)
+local ci  = ProtoField.uint64(NAME .. ".ci", "ci\t",base.HEX)
 -- mm cdr
 local access_type = ProtoField.uint8(NAME ..".access_type", "access_type\t", base.DEC)
 local authen_type = ProtoField.uint8(NAME ..".authen_type", "authen_type\t", base.DEC)
@@ -114,8 +115,8 @@ local ngap_cause = ProtoField.uint8(NAME ..".ngap_cause", "ngap_cause\t", base.D
 
 -- ho cdr
 local other_location_type  = ProtoField.uint8(CDR .. ".other_location_type", "target_location_type", base.DEC)
-local other_tac  = ProtoField.uint32(NAME .. ".other_tac", "target_tac\t",base.DEC)
-local other_ci  = ProtoField.uint64(NAME .. ".other_ci", "target_ci\t",base.DEC)
+local other_tac  = ProtoField.uint32(NAME .. ".other_tac", "target_tac\t",base.HEX)
+local other_ci  = ProtoField.uint64(NAME .. ".other_ci", "target_ci\t",base.HEX)
 
 local ran_node_id_len  = ProtoField.uint8(CDR .. ".ran_node_id_len", "ran_node_id_len\t", base.DEC)
 local ran_node_id  = ProtoField.uint32(NAME .. ".ran_node_id", "ran_node_id\t",base.DEC)
@@ -361,13 +362,15 @@ function ng_cdr_Protocol.dissector(buffer, pinfo, tree)
     local dtime = buffer(offset,8):uint64():tonumber()
 
     cdrSubtree:add(delay_time, buffer(offset,8)):append_text(string.format("\t[%.3f ms]",dtime/1000000))
-    offset = offset + 8 +1
+    offset = offset + 8
+    cdrSubtree:add(cause, buffer(offset,1))
+    offset = offset +1
     local cdr_id = buffer(offset, 1):le_uint()
     local cdr_desc = get_cdr_description(cdr_id)
     if cdr_desc == "Unknown CDR" then return false end
     cdrSubtree:add(type, buffer(offset,1)):append_text("\t\t[" .. cdr_desc .. "]")
     offset = offset + 1
-    cdrSubtree:add(cause, buffer(offset,1))
+    cdrSubtree:add(msg_type, buffer(offset,1))
     offset = offset + 1
     local tr = buffer(offset,1):uint64():tonumber()
     if tr == 1 then cdr_desc = "SUCCESS"
@@ -383,6 +386,23 @@ function ng_cdr_Protocol.dissector(buffer, pinfo, tree)
     offset = offset + 1
     if (0x41<=cdr_id and cdr_id<=0x5d) or cdr_id == 0xff then
         cdrSubtree:add(access_type, buffer(offset,1))
+        offset = offset + 1
+        cdrSubtree:add(authen_type, buffer(offset,1))
+        offset = offset + 1
+        cdrSubtree:add(cipher_algo, buffer(offset,1))
+        offset = offset + 1
+        cdrSubtree:add(new_amf_region_id, buffer(offset,1))
+        offset = offset + 1
+        cdrSubtree:add_le(new_amf_set_id, buffer(offset,2))
+        offset = offset + 2
+        cdrSubtree:add(new_amf_pointer, buffer(offset,1))
+        offset = offset + 1
+        cdrSubtree:add(new_fiveg_tmsi, buffer(offset,4))
+        offset = offset + 4
+        cdrSubtree:add(ngap_cause_type, buffer(offset,1))
+        offset = offset + 1
+        cdrSubtree:add(ngap_cause, buffer(offset,1))
+
     elseif cdr_id== 0xc1 or cdr_id == 0xc9 or cdr_id == 0xd1 then
         cdrSubtree:add(pdu_session_id, buffer(offset,1))
     else
@@ -390,7 +410,7 @@ function ng_cdr_Protocol.dissector(buffer, pinfo, tree)
         offset = offset + 1
         cdrSubtree:add(other_tac, buffer(offset,4))
         offset = offset + 4
-        cdrSubtree:add(other_ci, buffer(offset,8))
+        cdrSubtree:add_le(other_ci, buffer(offset,8))
         offset = offset + 8
         cdrSubtree:add(req_cause, buffer(offset,1))
         offset = offset + 1
