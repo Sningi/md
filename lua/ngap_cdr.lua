@@ -369,6 +369,7 @@ function ng_cdr_Protocol.dissector(buffer, pinfo, tree)
     local cdr_desc = get_cdr_description(cdr_id)
     if cdr_desc == "Unknown CDR" then return false end
     cdrSubtree:add(type, buffer(offset,1)):append_text("\t\t[" .. cdr_desc .. "]")
+    subtree:append_text("\t\t[" .. cdr_desc .. "]")
     offset = offset + 1
     cdrSubtree:add(msg_type, buffer(offset,1))
     offset = offset + 1
@@ -405,6 +406,24 @@ function ng_cdr_Protocol.dissector(buffer, pinfo, tree)
 
     elseif cdr_id== 0xc1 or cdr_id == 0xc9 or cdr_id == 0xd1 then
         cdrSubtree:add(pdu_session_id, buffer(offset,1))
+        offset = offset + 1
+        cdrSubtree:add(old_pdu_session_id, buffer(offset,1))
+        offset = offset + 1
+        cdrSubtree:add(ssc_mode, buffer(offset,1))
+        offset = offset + 1
+        cdrSubtree:add(select_ssc_mode, buffer(offset,1))
+        offset = offset + 1
+        cdrSubtree:add(select_pdu_session_type, buffer(offset,1))
+        offset = offset + 1
+        cdrSubtree:add_le(s_nssai_sd, buffer(offset,4))
+        offset = offset + 4
+        cdrSubtree:add(s_nssai_sst, buffer(offset,1))
+        offset = offset + 1
+        cdrSubtree:add(req_cause, buffer(offset,1))
+        offset = offset + 1
+        cdrSubtree:add(ngap_cause_type, buffer(offset,1))
+        offset = offset + 1
+        cdrSubtree:add(ngap_cause, buffer(offset,1))
     else
         cdrSubtree:add(other_location_type, buffer(offset,1))
         offset = offset + 1
@@ -417,6 +436,10 @@ function ng_cdr_Protocol.dissector(buffer, pinfo, tree)
         cdrSubtree:add(ran_node_id_len, buffer(offset,1))
         offset = offset + 1
         cdrSubtree:add(ran_node_id, buffer(offset,4))
+        offset = offset + 4
+        cdrSubtree:add(ngap_cause_type, buffer(offset,1))
+        offset = offset + 1
+        cdrSubtree:add(ngap_cause, buffer(offset,1))
     end
 end
 
