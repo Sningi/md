@@ -370,6 +370,7 @@ function ng_cdr_Protocol.dissector(buffer, pinfo, tree)
     if cdr_desc == "Unknown CDR" then return false end
     cdrSubtree:add(type, buffer(offset,1)):append_text("\t\t[" .. cdr_desc .. "]")
     subtree:append_text("\t\t[" .. cdr_desc .. "]")
+    pinfo.cols.info:set(string.format( "%s \t %s",pinfo.cols.info,  cdr_desc))
     offset = offset + 1
     cdrSubtree:add(msg_type, buffer(offset,1))
     offset = offset + 1
